@@ -1,89 +1,47 @@
-import chainer.functions as chainer_func
+import chainer.functions as F
 from chainer.link import Chain
-from chainer.links import BatchNormalization
-from chainer.links import LSTM
-from chainer.links import Linear
+from fgnt.chainer_extensions.links.sequence_lstms import SequenceBLSTM
+from fgnt.chainer_extensions.links.sequence_linear import SequenceLinear
 
 from fgnt.chainer_addons import binary_cross_entropy
 
 
 class MaskEstimator(Chain):
-    def _propagate(self, Y, train=False, dropout=0.):
+    def _propagate(self, Y, dropout=0.):
         raise NotImplemented
 
-    def calc_masks(self, Y, train=False, dropout=0.):
-        N_mask, X_mask = self._propagate(Y, train, dropout)
+    def calc_masks(self, Y, dropout=0.):
+        N_mask, X_mask = self._propagate(Y, dropout)
         return N_mask, X_mask
 
-    def train_and_cv(self, Y, IBM_N, IBM_X, train=True, dropout=.5):
-        mask_N, mask_X = self.calc_masks(Y, train=train, dropout=dropout)
-        loss = binary_cross_entropy(mask_N, IBM_N)
-        loss += binary_cross_entropy(mask_X, IBM_X)
+    def train_and_cv(self, Y, IBM_N, IBM_X, dropout=0.):
+        N_mask_hat, X_mask_hat = self._propagate(Y, dropout)
+        loss_X = F.binary_cross_entropy(X_mask_hat, IBM_X)
+        loss_N = F.binary_cross_entropy(N_mask_hat, IBM_N)
+        loss = (loss_X + loss_N) / 2
         return loss
 
 
 class BLSTMMaskEstimator(MaskEstimator):
-    def __init__(self):
+    def __init__(self, channels=6):
+        blstm_layer = SequenceBLSTM(513, 256, normalized=True)
+        relu_1 = SequenceLinear(256, 513, normalized=True)
+        relu_2 = SequenceLinear(513, 513, normalized=True)
+        noise_mask_estimate = SequenceLinear(513, 513, normalized=True)
+        speech_mask_estimate = SequenceLinear(513, 513, normalized=True)
+
         super().__init__(
-            batch_norm=BatchNormalization(513),
-            lstm_fw=LSTM(513, 256),
-            lstm_bw=LSTM(513, 256),
-            ff_1=Linear(256, 1024),
-            ff_2=Linear(1024, 1024),
-            ff_3=Linear(1024, 1024),
-            ff_X_mask=Linear(1024, 513),
-            ff_N_mask=Linear(1024, 513)
-        )
-        self._3d_shape = (0, 0, 0)
-
-    def _to_2d(self, var):
-        org_shape = var.data.shape
-        return chainer_func.reshape(
-            var, (org_shape[0] * org_shape[1], org_shape[2])), org_shape
-
-    def _to_3d(self, var, org_shape):
-        return chainer_func.reshape(
-            var, (org_shape[0], org_shape[1], var.data.shape[1])
+            blstm_layer=blstm_layer,
+            relu_1=relu_1,
+            relu_2=relu_2,
+            noise_mask_estimate=noise_mask_estimate,
+            speech_mask_estimate=speech_mask_estimate
         )
 
-    def _propagate(self, Y, train=False, dropout=0.):
-        Y_2d, y_shape = self._to_2d(Y)
-        Y_norm_2d = self.batch_norm(Y_2d, test=not train, finetune=train)
-        Y_norm = self._to_3d(Y_norm_2d, y_shape)
-        lstm_in = chainer_func.dropout(Y_norm, dropout, train=train)
-        self.lstm_fw.reset_state()
-        self.lstm_bw.reset_state()
-        lstm_fw_out = list()
-        T = lstm_in.data.shape[0]
-        for frame in chainer_func.split_axis(lstm_in, T, axis=0):
-            frame = chainer_func.reshape(
-                frame, (frame.data.shape[1], frame.data.shape[2]))
-            lstm_out = self.lstm_fw(frame)
-            lstm_out = chainer_func.reshape(
-                lstm_out, (1, lstm_out.data.shape[0], lstm_out.data.shape[1])
-            )
-            lstm_fw_out.append(lstm_out)
-        lstm_bw_out = list()
-        for frame in reversed(chainer_func.split_axis(lstm_in, T, axis=0)):
-            frame = chainer_func.reshape(
-                frame, (frame.data.shape[1], frame.data.shape[2]))
-            lstm_out = self.lstm_fw(frame)
-            lstm_out = chainer_func.reshape(
-                lstm_out, (1, lstm_out.data.shape[0], lstm_out.data.shape[1])
-            )
-            lstm_bw_out.append(lstm_out)
-        lstm_fw_out = chainer_func.concat(lstm_fw_out, axis=0)
-        lstm_bw_out = chainer_func.concat(reversed(lstm_bw_out), axis=0)
-        blstm_out = lstm_fw_out + lstm_bw_out
-        blstm_out, blstm_out_shape = self._to_2d(blstm_out)
-        ff_1 = chainer_func.clipped_relu(
-            self.ff_1(chainer_func.dropout(blstm_out, dropout, train)))
-        ff_2 = chainer_func.clipped_relu(
-            self.ff_2(chainer_func.dropout(ff_1, dropout, train)))
-        ff_3 = chainer_func.clipped_relu(
-            self.ff_3(chainer_func.dropout(ff_2, dropout, train)))
-        mask_X = self._to_3d(chainer_func.sigmoid(self.ff_X_mask(ff_3)),
-                             blstm_out_shape)
-        mask_N = self._to_3d(chainer_func.sigmoid(self.ff_X_mask(ff_3)),
-                             blstm_out_shape)
-        return mask_N, mask_X
+    def _propagate(self, Y, dropout=0.):
+        blstm = self.blstm_layer(Y, dropout=dropout)
+        relu_1 = F.clipped_relu(self.relu_1(blstm, dropout=dropout))
+        relu_2 = F.clipped_relu(self.relu_2(relu_1, dropout=dropout))
+        N_mask = F.sigmoid(self.noise_mask_estimate(relu_2))
+        X_mask = F.sigmoid(self.speech_mask_estimate(relu_2))
+        return N_mask, X_mask

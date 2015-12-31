@@ -98,7 +98,7 @@ while (epoch < args.max_epochs and not exhausted):
         IBM_X, IBM_N, Y = _create_batch(flists['tr'][i])
 
         model.zerograds()
-        loss = model.train_and_cv(Y, IBM_N, IBM_X, True, args.dropout)
+        loss = model.train_and_cv(Y, IBM_N, IBM_X, args.dropout)
         loss.backward()
         optimizer.update()
 
@@ -109,7 +109,7 @@ while (epoch < args.max_epochs and not exhausted):
     for i in tqdm(range(len(flists['dt'])),
                   desc='Cross-validation epoch {}'.format(epoch)):
         IBM_X, IBM_N, Y = _create_batch(flists['dt'][i], volatile=True)
-        loss = model.train_and_cv(Y, IBM_N, IBM_X, False, 0.)
+        loss = model.train_and_cv(Y, IBM_N, IBM_X, 0.)
         sum_loss_cv += float(loss.data)
 
     loss_tr = sum_loss_tr / len(flists['tr'])
