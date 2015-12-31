@@ -4,7 +4,7 @@ import numpy as np
 import scipy
 from numpy.fft import rfft, irfft
 from scipy import signal
-from scipy.io.wavfile import read as read_wav
+import librosa
 
 from fgnt.utils import segment_axis
 
@@ -62,19 +62,40 @@ def _biorthogonal_window_loopy(analysis_window, shift):
     return synthesis_window
 
 
-def audioread(path):
+def audioread(path, offset=0.0, duration=None, sample_rate=16000):
     """
-    Reads a wav file, converts it to 32 bit float matrix with one row.
+    Reads a wav file, converts it to 32 bit float values and reshapes accoring
+    to the number of channels.
+    Now, this is a wrapper of librosa with our common defaults.
 
     :param path: Absolute or relative file path to audio file.
     :type: String.
+    :param offset: Begin of loaded audio.
+    :type: Scalar in seconds.
+    :param duration: Duration of loaded audio.
+    :type: Scalar in seconds.
+    :param sample_rate: Sample rate of audio
+    :type: scalar in number of samples per second
     :return:
-    """
 
-    _, data = read_wav(path)
-    data = np.asarray(data, np.float32)
-    data /= np.iinfo(np.int16).max
-    return np.atleast_2d(data)
+    .. admonition:: Example
+        Only path provided:
+
+        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
+        >>> signal = audioread(path)
+
+        Say you load audio examples from a very long audio, you can provide a
+        start position and a duration in seconds.
+
+        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
+        >>> signal = audioread(path, offset=0, duration=1)
+    """
+    signal = librosa.load(path,
+                          sr=sample_rate,
+                          mono=False,
+                          offset=offset,
+                          duration=duration)
+    return signal[0]
 
 
 def stft(time_signal, time_dim=None, size=1024, shift=256,
@@ -127,7 +148,6 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
     mapping = letters[:time_signal_seg.ndim] + ',' + letters[time_dim + 1] \
         + '->' + letters[:time_signal_seg.ndim]
 
-    # ToDo: Implement this more memory efficient
     return rfft(np.einsum(mapping, time_signal_seg, window),
                 axis=time_dim + 1)
 
