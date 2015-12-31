@@ -4,8 +4,7 @@ import numpy as np
 import scipy
 from numpy.fft import rfft, irfft
 from scipy import signal
-import wave
-import struct
+from scipy.io.wavfile import read as read_wav
 
 from fgnt.utils import segment_axis
 
@@ -72,13 +71,9 @@ def audioread(path):
     :return:
     """
 
-    with wave.open(path, 'r') as wav_file:
-        length = wav_file.getnframes()
-        waveData = wav_file.readframes(length)
-        data = struct.unpack('<'+length*'h', waveData)
-        data = np.asarray(data, np.float32)
-        data /= np.iinfo(np.int16).max
-
+    _, data = read_wav(path)
+    data = np.asarray(data, np.float32)
+    data /= np.iinfo(np.int16).max
     return np.atleast_2d(data)
 
 
