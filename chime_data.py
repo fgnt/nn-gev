@@ -27,8 +27,8 @@ def _gen_flist_wo_ext(chime_data_dir, stage, scenario):
 def _get_audio_data(file_template, postfix='', ch_range=range(1, 7)):
     audio_data = list()
     for ch in ch_range:
-        audio_data.append(
-            audioread(file_template + '.CH{}{}.wav'.format(ch, postfix)))
+        audio_data.append(audioread(
+            file_template + '.CH{}{}.wav'.format(ch, postfix))[None, :])
     audio_data = np.concatenate(audio_data, axis=0)
     audio_data = audio_data.astype(np.float32)
     return audio_data
@@ -42,8 +42,8 @@ def prepare_training_data(chime_data_dir, dest_dir):
         for f in tqdm.tqdm(flist, desc='Generating data for {}'.format(stage)):
             clean_audio = _get_audio_data(f, '.Clean')
             noise_audio = _get_audio_data(f, '.Noise')
-            X = stft(clean_audio, time_dim=0)
-            N = stft(noise_audio, time_dim=0)
+            X = stft(clean_audio, time_dim=1).transpose((1, 0, 2))
+            N = stft(noise_audio, time_dim=1).transpose((1, 0, 2))
             IBM_X, IBM_N = estimate_IBM(X, N)
             Y_abs = np.abs(X + N)
             export_dict = {
@@ -54,7 +54,7 @@ def prepare_training_data(chime_data_dir, dest_dir):
             export_name = os.path.join(dest_dir, stage, f.split('/')[-1])
             with open(export_name, 'wb') as fid:
                 pickle.dump(export_dict, fid)
-            export_flist.append(export_name)
+            export_flist.append(os.path.join(stage, f.split('/')[-1]))
         with open(os.path.join(dest_dir, 'flist_{}.json'.format(stage)),
                   'w') as fid:
             json.dump(export_flist, fid, indent=4)

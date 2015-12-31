@@ -1,8 +1,8 @@
-from chainer import Variable
 from chainer.link import Chain
 from chainer.links import BatchNormalization
 from chainer.links import LSTM
 from chainer.links import Linear
+import chainer.functions as chainer_func
 
 from fgnt.chainer_addons import binary_cross_entropy
 
@@ -12,9 +12,6 @@ class MaskEstimator(Chain):
         raise NotImplemented
 
     def calc_masks(self, Y, train=False, dropout=0.):
-        Y_var = Variable(Y, not train)
-        if not self._cpu:
-            Y_var.to_gpu()
         N_mask, X_mask = self._propagate(Y, train, dropout)
         return N_mask, X_mask
 
@@ -40,7 +37,7 @@ class BLSTMMaskEstimator(MaskEstimator):
 
     def _propagate(self, Y, train=False, dropout=0.):
         Y_norm = self.batch_norm(Y, test=not train, finetune=train)
-        lstm_in = F.dropout(Y_norm, dropout, train=train)
+        lstm_in = chainer_func.dropout(Y_norm, dropout, train=train)
         self.lstm_fw.reset_state()
         self.lstm_bw.reset_state()
         T = lstm_in.data.shape[0]

@@ -70,7 +70,7 @@ if args.resume:
 
 
 def _create_batch(file, volatile=False):
-    with open(file) as fid:
+    with open(os.path.join(args.data_dir, file), 'rb') as fid:
         data = pickle.load(fid)
     IBM_X = Variable(data['IBM_X'], volatile=volatile)
     IBM_N = Variable(data['IBM_N'], volatile=volatile)
@@ -86,7 +86,7 @@ epoch = 0
 exhausted = False
 best_epoch = 0
 best_cv_loss = np.inf
-while (epoch < args.max_epoch and not exhausted):
+while (epoch < args.max_epochs and not exhausted):
     log.info('Starting epoch {}. Best CV loss was {} at epoch {}'.format(
         epoch, best_cv_loss, best_epoch
     ))
