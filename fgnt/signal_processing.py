@@ -4,7 +4,8 @@ import numpy as np
 import scipy
 from numpy.fft import rfft, irfft
 from scipy import signal
-import librosa
+import wave
+import struct
 
 from fgnt.utils import segment_axis
 
@@ -62,40 +63,23 @@ def _biorthogonal_window_loopy(analysis_window, shift):
     return synthesis_window
 
 
-def audioread(path, offset=0.0, duration=None, sample_rate=16000):
+def audioread(path):
     """
-    Reads a wav file, converts it to 32 bit float values and reshapes accoring
-    to the number of channels.
-    Now, this is a wrapper of librosa with our common defaults.
+    Reads a wav file, converts it to 32 bit float matrix with one row.
 
     :param path: Absolute or relative file path to audio file.
     :type: String.
-    :param offset: Begin of loaded audio.
-    :type: Scalar in seconds.
-    :param duration: Duration of loaded audio.
-    :type: Scalar in seconds.
-    :param sample_rate: Sample rate of audio
-    :type: scalar in number of samples per second
     :return:
-
-    .. admonition:: Example
-        Only path provided:
-
-        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
-        >>> signal = audioread(path)
-
-        Say you load audio examples from a very long audio, you can provide a
-        start position and a duration in seconds.
-
-        >>> path = '/net/speechdb/timit/pcm/train/dr1/fcjf0/sa1.wav'
-        >>> signal = audioread(path, offset=0, duration=1)
     """
-    signal = librosa.load(path,
-                          sr=sample_rate,
-                          mono=False,
-                          offset=offset,
-                          duration=duration)
-    return signal[0]
+
+    with wave.open(path, 'r') as wav_file:
+        length = wav_file.getnframes()
+        waveData = wav_file.readframes(length)
+        data = struct.unpack('<'+length*'h', waveData)
+        data = np.asarray(data, np.float32)
+        data /= np.iinfo(np.int16).max
+
+    return np.atleast_2d(data)
 
 
 def stft(time_signal, time_dim=None, size=1024, shift=256,
