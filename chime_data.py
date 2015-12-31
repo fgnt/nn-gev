@@ -55,5 +55,6 @@ def prepare_training_data(chime_data_dir, dest_dir):
             with open(export_name, 'wb') as fid:
                 pickle.dump(export_dict, fid)
             export_flist.append(export_name)
-        with open(os.path.join(dest_dir, 'flist_{}.json'.format(stage))) as fid:
+        with open(os.path.join(dest_dir, 'flist_{}.json'.format(stage)),
+                  'w') as fid:
             json.dump(export_flist, fid, indent=4)
