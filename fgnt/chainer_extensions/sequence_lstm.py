@@ -209,7 +209,7 @@ class SequenceLSTMFunction(function.Function):
             # outside of the loop
             self.act[t] += (self.mask * self.h_prev[t]).dot(W_h)
             # Apply the LSTM activation
-            lstm_step(self.act, t * step, step, self.c_prev, self.h_prev)
+            lstm_step(self.act, t * step, step, self.c_prev, self.h_prev, size=step)
 
         if self.reverse:
             return self.h_prev[1:][::-1], self.c_prev[-1], \
@@ -255,12 +255,12 @@ class SequenceLSTMFunction(function.Function):
         # Initial timestep to avoid if in loop for gh
         t = self.T - 1
         lstm_grad_step(self.act, self.c_prev, gh, gout, self.mask,
-                       t * step, step, gact, gc)
+                       t * step, step, gact, gc, size=step)
 
         for t in six.moves.range(self.T - 2, -1, -1):
-            gh += W_h.dot(gact[t+1])
+            gh += (gact[t+1]).dot(W_h.T)
             lstm_grad_step(self.act, self.c_prev, gh, gout, self.mask,
-                           t * step, step, gact, gc)
+                           t * step, step, gact, gc, size=step)
 
         gW_h = cupy.dot(self._flatten(self.h_prev[:-1]).T,
                         self._flatten(gact))
