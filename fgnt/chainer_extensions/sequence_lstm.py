@@ -207,7 +207,7 @@ class SequenceLSTMFunction(function.Function):
         for t in six.moves.range(self.T):
             # Add the hidden-hidden activation to the activation calculated
             # outside of the loop
-            self.act[t] += W_h.dot(self.mask * self.h_prev[t])
+            self.act[t] += (self.mask * self.h_prev[t]).dot(W_h)
             # Apply the LSTM activation
             lstm_step(self.act, t * step, step, self.c_prev, self.h_prev)
 
