@@ -10,8 +10,8 @@ from chainer import cuda
 from chainer import optimizers
 from chainer import serializers
 from tqdm import tqdm
-from chime_data import prepare_training_data
 
+from chime_data import prepare_training_data
 from nn_models import BLSTMMaskEstimator
 
 parser = argparse.ArgumentParser(description='NN GEV training')
@@ -36,9 +36,21 @@ parser.add_argument('--dropout', default=.5, type=float,
 args = parser.parse_args()
 
 log = logging.getLogger('nn_gev')
+log.setLevel(logging.DEBUG)
+fh = logging.FileHandler(os.path.join(args.data_dir, 'nn-gev.log'))
+fh.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+log.addHandler(fh)
+log.addHandler(ch)
 
 if args.chime_dir != '':
-    log.info('Preparing training data and storing it in {}'.format(args.data_dir))
+    log.info(
+        'Preparing training data and storing it in {}'.format(args.data_dir))
     prepare_training_data(args.chime_dir, args.data_dir)
 
 flists = dict()
@@ -131,4 +143,7 @@ while (epoch < args.max_epochs and not exhausted):
     if epoch - best_epoch == args.patience:
         exhausted = True
         log.info('Patience exhausted. Stopping training')
+
+    epoch += 1
+
 log.info('Finished!')
