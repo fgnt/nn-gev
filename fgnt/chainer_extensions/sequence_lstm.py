@@ -1,6 +1,5 @@
 import numpy
 import six
-
 from chainer import cuda
 
 if cuda.available:
@@ -204,37 +203,13 @@ class SequenceLSTMFunction(function.Function):
             ''',
             'lstm_fwd', preamble=_preamble)
 
-        # Perpare LSTM kernel
         step = self.B * self.units
-        lstm_kernel, indexer = lstm_step.get_launchable_kernel(
-            self.act, step, step,
-            self.c_prev, self.h_prev, size=step
-        )
-
-        # Prepare BLAS call for hidden-hidden activation
-        handle = cuda.Device().cublas_handle
-        k, m = W_h.shape
-        n, l = self.h_prev.shape[1:]
-        lda = max(1, self.h_prev[0].strides[0] // self.h_prev[0].dtype.itemsize)
-        ldb = max(1, W_h.strides[0] // W_h.dtype.itemsize)
-        ldc = max(1, self.act[0].strides[0] // self.act[0].dtype.itemsize)
-        h_prev_ptr_hop = self.h_prev.strides[0]
-        act_ptr_hop = self.act.strides[0]
-
         for t in six.moves.range(self.T):
             # Add the hidden-hidden activation to the activation calculated
             # outside of the loop
-
-            sgemm(handle, False, False, m, n, k, 1, W_h.data.ptr, ldb,
-                  ((self.mask * self.h_prev).data + t * h_prev_ptr_hop).ptr,
-                  lda, 1,
-                  (self.act.data + t * act_ptr_hop).ptr, ldc)
+            self.act[t] += W_h.dot(self.mask * self.h_prev[t])
             # Apply the LSTM activation
-            lstm_kernel.linear_launch(step,
-                                      [
-                                          self.act, t * step, step,
-                                          self.c_prev, self.h_prev, indexer
-                                      ])
+            lstm_step(self.act, t * step, step, self.c_prev, self.h_prev)
 
         if self.reverse:
             return self.h_prev[1:][::-1], self.c_prev[-1], \
@@ -276,39 +251,16 @@ class SequenceLSTMFunction(function.Function):
             ''',
             'lstm_bwd', preamble=_preamble)
         step = self.B * self.units
-        lstm_kernel, indexer = lstm_grad_step.get_launchable_kernel(
-            self.act,
-            self.c_prev, gh,
-            gout, self.mask,
-            step, step,
-            gact, gc,
-            size=step)
-
-        # Prepare BLAS call
-        handle = cuda.Device().cublas_handle
-        m, k = W_h.shape
-        n, l = gact.shape[1:]
-        ldb = max(1, gact[0].strides[0] // gact[0].dtype.itemsize)
-        lda = max(1, W_h.strides[0] // W_h.dtype.itemsize)
-        ldc = max(1, gh.strides[0] // gh.dtype.itemsize)
-        gact_ptr_hop = gact.strides[0]
 
         # Initial timestep to avoid if in loop for gh
         t = self.T - 1
-        lstm_kernel.linear_launch(step,
-                                  [self.act, self.c_prev, gh, gout, self.mask,
-                                   t * step, step,
-                                   gact, gc, indexer])
+        lstm_grad_step(self.act, self.c_prev, gh, gout, self.mask,
+                       t * step, step, gact, gc)
 
         for t in six.moves.range(self.T - 2, -1, -1):
-            sgemm(handle, True, False, m, n, k, 1, W_h.data.ptr, lda,
-                  (gact.data + (t + 1) * gact_ptr_hop).ptr, ldb, 0, gh.data.ptr,
-                  ldc)
-            lstm_kernel.linear_launch(step,
-                                      [self.act, self.c_prev, gh, gout,
-                                       self.mask,
-                                       t * step, step,
-                                       gact, gc, indexer])
+            gh += W_h.dot(gact[t+1])
+            lstm_grad_step(self.act, self.c_prev, gh, gout, self.mask,
+                           t * step, step, gact, gc)
 
         gW_h = cupy.dot(self._flatten(self.h_prev[:-1]).T,
                         self._flatten(gact))
