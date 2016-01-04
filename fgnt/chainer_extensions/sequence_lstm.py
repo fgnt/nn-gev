@@ -1,10 +1,6 @@
 import numpy
 import six
 from chainer import cuda
-
-if cuda.available:
-    import cupy
-    from cupy.cuda.cublas import sgemm
 from chainer import function
 import chainer
 import scipy.special
@@ -168,8 +164,9 @@ class SequenceLSTMFunction(function.Function):
         c_prev = inputs[2]
         h_prev = inputs[3]
 
+        xp = cuda.cupy
+
         if self.mask is None:
-            xp = cuda.cupy
             if self.dropout_ratio > 0:
                 if self.dropout_scale:
                     scale = h_prev[0].dtype.type(1. / (1 - self.dropout_ratio))
@@ -186,22 +183,22 @@ class SequenceLSTMFunction(function.Function):
         else:
             self.act = x.copy()
 
-        self.h_prev = cupy.empty((self.T + 1, self.B, self.units), dtype=F32)
-        self.c_prev = cupy.empty((self.T + 1, self.B, self.units), dtype=F32)
+        self.h_prev = xp.empty((self.T + 1, self.B, self.units), dtype=F32)
+        self.c_prev = xp.empty((self.T + 1, self.B, self.units), dtype=F32)
 
         # Set the hidden and cell for the previous step to zero
         self.c_prev[0] = c_prev
         self.h_prev[0] = h_prev
 
         lstm_step = cuda.elementwise(
-            'raw T act, int64 offset, int64 s',
-            'raw T c_prev, raw T h',
-            '''
-                COMMON_ROUTINE;
-                c_prev[i + offset + s] = aa * ai + af * c_prev[i+offset];
-                h[i + offset + s] = ao * tanh(c_prev[i + offset + s]);
-            ''',
-            'lstm_fwd', preamble=_preamble)
+                'raw T act, int64 offset, int64 s',
+                'raw T c_prev, raw T h',
+                '''
+                    COMMON_ROUTINE;
+                    c_prev[i + offset + s] = aa * ai + af * c_prev[i+offset];
+                    h[i + offset + s] = ao * tanh(c_prev[i + offset + s]);
+                ''',
+                'lstm_fwd', preamble=_preamble)
 
         step = self.B * self.units
         for t in six.moves.range(self.T):
@@ -209,7 +206,8 @@ class SequenceLSTMFunction(function.Function):
             # outside of the loop
             self.act[t] += (self.mask * self.h_prev[t]).dot(W_h)
             # Apply the LSTM activation
-            lstm_step(self.act, t * step, step, self.c_prev, self.h_prev, size=step)
+            lstm_step(self.act, t * step, step, self.c_prev, self.h_prev,
+                      size=step)
 
         if self.reverse:
             return self.h_prev[1:][::-1], self.c_prev[-1], \
@@ -225,31 +223,31 @@ class SequenceLSTMFunction(function.Function):
         if self.reverse:
             gout = gout[::-1]
 
-        gact = cupy.empty((self.T, self.B, 4 * self.units), dtype=F32)
+        gact = cuda.cupy.empty((self.T, self.B, 4 * self.units), dtype=F32)
         if gc is None:
-            gc = cupy.zeros((self.B, self.units), dtype=F32)
+            gc = cuda.cupy.zeros((self.B, self.units), dtype=F32)
         if gh is None:
-            gh = cupy.zeros((self.B, self.units), dtype=F32)
+            gh = cuda.cupy.zeros((self.B, self.units), dtype=F32)
 
         # Prepare LSTM kernel
         lstm_grad_step = cuda.elementwise(
-            'raw T act, raw T c_prev, raw T gh, raw T gout, raw T mask,'
-            'int64 offset, int64 s',
-            'raw T gact, raw T gc',
-            '''
-               COMMON_ROUTINE;
-               // I = (i+offset) * 4
-               int J = i + offset;
-               T co  = tanh(c_prev[J + s]);
-               T gc1 = (mask[i]*gh[i]+gout[J]) * ao * grad_tanh(co) + gc[i];
-               gact[I+3] = (mask[i]*gh[i]+gout[J]) * co * grad_sigmoid(ao);
+                'raw T act, raw T c_prev, raw T gh, raw T gout, raw T mask,'
+                'int64 offset, int64 s',
+                'raw T gact, raw T gc',
+                '''
+                   COMMON_ROUTINE;
+                   // I = (i+offset) * 4
+                   int J = i + offset;
+                   T co  = tanh(c_prev[J + s]);
+                   T gc1 = (mask[i]*gh[i]+gout[J]) * ao * grad_tanh(co) + gc[i];
+                   gact[I+3] = (mask[i]*gh[i]+gout[J]) * co * grad_sigmoid(ao);
 
-               gc[i]  = gc1 * af;
-               gact[I]         = gc1 * ai        * grad_tanh(aa);
-               gact[I+1]         = gc1 * aa        * grad_sigmoid(ai);
-               gact[I+2]         = gc1 * c_prev[J] * grad_sigmoid(af);
-            ''',
-            'lstm_bwd', preamble=_preamble)
+                   gc[i]  = gc1 * af;
+                   gact[I]         = gc1 * ai        * grad_tanh(aa);
+                   gact[I+1]         = gc1 * aa        * grad_sigmoid(ai);
+                   gact[I+2]         = gc1 * c_prev[J] * grad_sigmoid(af);
+                ''',
+                'lstm_bwd', preamble=_preamble)
         step = self.B * self.units
 
         # Initial timestep to avoid if in loop for gh
@@ -258,18 +256,18 @@ class SequenceLSTMFunction(function.Function):
                        t * step, step, gact, gc, size=step)
 
         for t in six.moves.range(self.T - 2, -1, -1):
-            gh += (gact[t+1]).dot(W_h.T)
+            gh = (gact[t + 1]).dot(W_h.T)
             lstm_grad_step(self.act, self.c_prev, gh, gout, self.mask,
                            t * step, step, gact, gc, size=step)
 
-        gW_h = cupy.dot(self._flatten(self.h_prev[:-1]).T,
-                        self._flatten(gact))
+        gW_h = cuda.cupy.dot(self._flatten(self.h_prev[:-1]).T,
+                             self._flatten(gact))
 
         if self.reverse:
             return gact[::-1], gW_h, gc, \
-                   cupy.dot(gact[0], W_h.T)
+                   cuda.cupy.dot(gact[0], W_h.T)
         else:
-            return gact, gW_h, gc, cupy.dot(gact[0], W_h.T)
+            return gact, gW_h, gc, cuda.cupy.dot(gact[0], W_h.T)
 
 
 def _make_initial_state(xp, batch_size, units):
@@ -379,14 +377,16 @@ def sequence_lstm_function(x, W_h, c_prev=None, h_prev=None, reverse=False,
     if c_prev is None:
         xp = cuda.get_array_module(x.data)
         c_prev = chainer.Variable(
-            _make_initial_state(xp, x.shape[1], W_h.shape[0]), name='c_init',
-            volatile='auto')
+                _make_initial_state(xp, x.shape[1], W_h.shape[0]),
+                name='c_init',
+                volatile='auto')
 
     if h_prev is None:
         xp = cuda.get_array_module(x.data)
         h_prev = chainer.Variable(
-            _make_initial_state(xp, x.shape[1], W_h.shape[0]), name='h_init',
-            volatile='auto')
+                _make_initial_state(xp, x.shape[1], W_h.shape[0]),
+                name='h_init',
+                volatile='auto')
 
     return SequenceLSTMFunction(reverse, dropout, dropout_scale)(
-        x, W_h, c_prev, h_prev)
+            x, W_h, c_prev, h_prev)
