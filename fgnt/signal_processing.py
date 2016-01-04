@@ -6,6 +6,9 @@ from numpy.fft import rfft, irfft
 from scipy import signal
 import librosa
 
+from scipy.io.wavfile import write as wav_write
+import threading
+
 from fgnt.utils import segment_axis
 
 
@@ -50,7 +53,7 @@ def _biorthogonal_window_loopy(analysis_window, shift):
 
     sum_of_squares = np.zeros(shift)
     for synthesis_index in range(0, shift):
-        for sample_index in range(0, number_of_shifts+1):
+        for sample_index in range(0, number_of_shifts + 1):
             analysis_index = synthesis_index + sample_index * shift
 
             if analysis_index + 1 < fft_size:
@@ -124,14 +127,14 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
 
     # Pad with zeros to have enough samples for the window function to fade.
     if fading:
-        pad = [(0, 0)]*time_signal.ndim
-        pad[time_dim] = [size-shift, size-shift]
+        pad = [(0, 0)] * time_signal.ndim
+        pad[time_dim] = [size - shift, size - shift]
         time_signal = np.pad(time_signal, pad, mode='constant')
 
     # Pad with trailing zeros, to have an integral number of frames.
     frames = _samples_to_stft_frames(time_signal.shape[time_dim], size, shift)
     samples = _stft_frames_to_samples(frames, size, shift)
-    pad = [(0, 0)]*time_signal.ndim
+    pad = [(0, 0)] * time_signal.ndim
     pad[time_dim] = [0, samples - time_signal.shape[time_dim]]
     time_signal = np.pad(time_signal, pad, mode='constant')
 
@@ -139,14 +142,14 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
         window = window(size)
     else:
         window = window(window_length)
-        window = np.pad(window, (0, size-window_length), mode='constant')
+        window = np.pad(window, (0, size - window_length), mode='constant')
 
     time_signal_seg = segment_axis(time_signal, size,
-                                   size-shift, axis=time_dim)
+                                   size - shift, axis=time_dim)
 
     letters = string.ascii_lowercase
     mapping = letters[:time_signal_seg.ndim] + ',' + letters[time_dim + 1] \
-        + '->' + letters[:time_signal_seg.ndim]
+              + '->' + letters[:time_signal_seg.ndim]
 
     return rfft(np.einsum(mapping, time_signal_seg, window),
                 axis=time_dim + 1)
@@ -176,7 +179,7 @@ def istft(stft_signal, size=1024, shift=256,
         window = window(size)
     else:
         window = window(window_length)
-        window = np.pad(window, (0, size-window_length), mode='constant')
+        window = np.pad(window, (0, size - window_length), mode='constant')
 
     window = _biorthogonal_window_loopy(window, shift)
 
@@ -190,6 +193,50 @@ def istft(stft_signal, size=1024, shift=256,
 
     # Compensate fade-in and fade-out
     if fading:
-        time_signal = time_signal[size-shift:len(time_signal)-(size-shift)]
+        time_signal = time_signal[
+                      size - shift:len(time_signal) - (size - shift)]
 
     return time_signal
+
+
+def audiowrite(data, path, samplerate=16000, normalize=False, threaded=True):
+    """ Write the audio data ``data`` to the wav file ``path``
+
+    The file can be written in a threaded mode. In this case, the writing
+    process will be started at a separate thread. Consequently, the file will
+    not be written when this function exits.
+
+    :param data: A numpy array with the audio data
+    :param path: The wav file the data should be written to
+    :param samplerate: Samplerate of the audio data
+    :param normalize: Normalize the audio first so that the values are within
+        the range of [INTMIN, INTMAX]. E.g. no clipping occurs
+    :param threaded: If true, the write process will be started as a separate
+        thread
+    :return: The number of clipped samples
+    """
+    data = data.copy()
+    int16_max = np.iinfo(np.int16).max
+    int16_min = np.iinfo(np.int16).min
+
+    if normalize:
+        if not data.dtype.kind == 'f':
+            data = data.astype(np.float)
+        data /= np.max(np.abs(data))
+
+    if data.dtype.kind == 'f':
+        data *= int16_max
+
+    sample_to_clip = np.sum(data > int16_max)
+    if sample_to_clip > 0:
+        print('Warning, clipping {} samples'.format(sample_to_clip))
+    data = np.clip(data, int16_min, int16_max)
+    data = data.astype(np.int16)
+
+    if threaded:
+        threading.Thread(target=wav_write,
+                         args=(path, samplerate, data)).start()
+    else:
+        wav_write(path, samplerate, data)
+
+    return sample_to_clip
