@@ -23,7 +23,7 @@ class MaskEstimator(Chain):
 
 
 class BLSTMMaskEstimator(MaskEstimator):
-    def __init__(self, channels=6):
+    def __init__(self):
         blstm_layer = SequenceBLSTM(513, 256, normalized=True)
         relu_1 = SequenceLinear(256, 513, normalized=True)
         relu_2 = SequenceLinear(513, 513, normalized=True)
@@ -31,11 +31,11 @@ class BLSTMMaskEstimator(MaskEstimator):
         speech_mask_estimate = SequenceLinear(513, 513, normalized=True)
 
         super().__init__(
-            blstm_layer=blstm_layer,
-            relu_1=relu_1,
-            relu_2=relu_2,
-            noise_mask_estimate=noise_mask_estimate,
-            speech_mask_estimate=speech_mask_estimate
+                blstm_layer=blstm_layer,
+                relu_1=relu_1,
+                relu_2=relu_2,
+                noise_mask_estimate=noise_mask_estimate,
+                speech_mask_estimate=speech_mask_estimate
         )
 
     def _propagate(self, Y, dropout=0.):
@@ -44,4 +44,23 @@ class BLSTMMaskEstimator(MaskEstimator):
         relu_2 = F.clipped_relu(self.relu_2(relu_1, dropout=dropout))
         N_mask = F.sigmoid(self.noise_mask_estimate(relu_2))
         X_mask = F.sigmoid(self.speech_mask_estimate(relu_2))
+        return N_mask, X_mask
+
+
+class SimpleFWMaskEstimator(MaskEstimator):
+    def __init__(self):
+        relu_1 = SequenceLinear(513, 1024, normalized=True)
+        noise_mask_estimate = SequenceLinear(513, 513, normalized=True)
+        speech_mask_estimate = SequenceLinear(513, 513, normalized=True)
+
+        super().__init__(
+                relu_1=relu_1,
+                noise_mask_estimate=noise_mask_estimate,
+                speech_mask_estimate=speech_mask_estimate
+        )
+
+    def _propagate(self, Y, dropout=0.):
+        relu_1 = F.clipped_relu(self.relu_1(Y, dropout=dropout))
+        N_mask = F.sigmoid(self.noise_mask_estimate(relu_1))
+        X_mask = F.sigmoid(self.speech_mask_estimate(relu_1))
         return N_mask, X_mask
