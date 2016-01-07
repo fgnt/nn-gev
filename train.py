@@ -13,10 +13,14 @@ from tqdm import tqdm
 
 from chime_data import prepare_training_data
 from nn_models import BLSTMMaskEstimator
+from nn_models import SimpleFWMaskEstimator
+from fgnt.utils import Timer
 
 parser = argparse.ArgumentParser(description='NN GEV training')
 parser.add_argument('data_dir', help='Directory used for the training data '
                                      'and to store the model file.')
+parser.add_argument('model_type',
+                    help='Type of model (BLSTM or FW)')
 parser.add_argument('--chime_dir', default='',
                     help='Base directory of the CHiME challenge. This is '
                          'used to create the training data. If not specified, '
@@ -61,7 +65,14 @@ for stage in ['tr', 'dt']:
 log.debug('Loaded file lists')
 
 # Prepare model
-model = BLSTMMaskEstimator()
+if args.model_type == 'BLSTM':
+    model = BLSTMMaskEstimator()
+    model_save_dir = os.path.join(args.data_dir, 'BLSTM_model')
+elif args.model_type == 'FW':
+    model = SimpleFWMaskEstimator()
+    model_save_dir = os.path.join(args.data_dir, 'FW_model')
+else:
+    raise ValueError('Unknown model type. Possible are "BLSTM" and "FW"')
 if args.gpu >= 0:
     cuda.get_device(args.gpu).use()
     model.to_gpu()
@@ -106,13 +117,24 @@ while (epoch < args.max_epochs and not exhausted):
     # training
     perm = np.random.permutation(len(flists['tr']))
     sum_loss_tr = 0
+    t_io = 0
+    t_fw = 0
+    t_bw = 0
     for i in tqdm(perm, desc='Training epoch {}'.format(epoch)):
-        IBM_X, IBM_N, Y = _create_batch(flists['tr'][i])
+
+        with Timer() as t:
+            IBM_X, IBM_N, Y = _create_batch(flists['tr'][i])
+        t_io += t.msecs
 
         model.zerograds()
-        loss = model.train_and_cv(Y, IBM_N, IBM_X, args.dropout)
-        loss.backward()
-        optimizer.update()
+        with Timer() as t:
+            loss = model.train_and_cv(Y, IBM_N, IBM_X, args.dropout)
+        t_fw += t.msecs
+
+        with Timer() as t:
+            loss.backward()
+            optimizer.update()
+        t_bw += t.msecs
 
         sum_loss_tr += float(loss.data)
 
@@ -131,15 +153,17 @@ while (epoch < args.max_epochs and not exhausted):
         'Finished epoch {}. '
         'Mean loss during training/cross-validation: {:.3f}/{:.3f}'.format(
             epoch, loss_tr, loss_cv))
+    log.info('Timings: I/O: {:.2f}s | FW: {:.2f}s | BW: {:.2f}s'.format(
+            t_io/1000, t_fw/1000, t_bw/1000))
 
     if loss_cv < best_cv_loss:
         best_epoch = epoch
         best_cv_loss = loss_cv
-        model_file = os.path.join(args.data_dir, 'best.nnet')
+        model_file = os.path.join(model_save_dir, 'best.nnet')
         log.info('New best loss during cross-validation. Saving model file '
                  'under {}'.format(model_file))
         serializers.save_hdf5(model_file, model)
-        serializers.save_hdf5(os.path.join(args.data_dir, 'mlp.tr'), optimizer)
+        serializers.save_hdf5(os.path.join(model_save_dir, 'mlp.tr'), optimizer)
 
     if epoch - best_epoch == args.patience:
         exhausted = True
