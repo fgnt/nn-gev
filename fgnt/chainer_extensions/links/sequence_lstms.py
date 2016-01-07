@@ -66,15 +66,14 @@ class SequenceLSTM(link.Link):
 
         dropout_rate = kwargs.get('dropout', 0.)
         dropout_rate_hidden_hidden = kwargs.get('dropout_hidden_hidden', 0.)
-        dropout_scale = kwargs.get('dropout_scale', True)
-        x = dropout(x, dropout_rate, dropout_scale)
+        x = dropout(x, dropout_rate)
         lstm_in = sequence_linear_function(x, self.W_x)
         if self.normalized:
             lstm_in = sequence_batch_normalization_function(lstm_in, self.gamma,
                                                             self.beta)
         lstm_out, self.h_prev, self.c_prev = \
             sequence_lstm_function(lstm_in, self.W_h, None, None, self.reverse,
-                                   dropout_rate_hidden_hidden, dropout_scale)
+                                   dropout_rate_hidden_hidden)
         return lstm_out
 
 

@@ -79,8 +79,7 @@ class SequenceLinear(link.Link):
         """
 
         dropout_rate = kwargs.get('dropout', 0.)
-        dropout_scale = kwargs.get('dropout_scale', True)
-        x = dropout(x, dropout_rate, dropout_scale)
+        x = dropout(x, dropout_rate)
         x = sequence_linear_function(x, self.W, self.b)
         if self.normalized:
             x = sequence_batch_normalization_function(x, self.gamma, self.beta)
