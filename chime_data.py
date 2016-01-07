@@ -11,12 +11,15 @@ from fgnt.signal_processing import stft
 from fgnt.utils import mkdir_p
 
 
-def gen_flist_simu(chime_data_dir, stage):
+def gen_flist_simu(chime_data_dir, stage, ext=False):
     with open(os.path.join(
             chime_data_dir, 'annotations',
             '{}05_{}.json'.format(stage, 'simu'))) as fid:
         annotations = json.load(fid)
-    isolated_dir = 'isolated' if stage == 'et' else 'isolated_ext'
+    if ext:
+        isolated_dir = 'isolated_ext'
+    else:
+        isolated_dir = 'isolated'
     flist = [os.path.join(
         chime_data_dir, 'audio', '16kHz', isolated_dir,
         '{}05_{}_{}'.format(stage, a['environment'].lower(), 'simu'),
@@ -61,7 +64,7 @@ def get_audio_data_with_context(embedded_template, t_start, t_end,
 
 def prepare_training_data(chime_data_dir, dest_dir):
     for stage in ['tr', 'dt']:
-        flist = gen_flist_simu(chime_data_dir, stage)
+        flist = gen_flist_simu(chime_data_dir, stage, ext=True)
         export_flist = list()
         mkdir_p(os.path.join(dest_dir, stage))
         for f in tqdm.tqdm(flist, desc='Generating data for {}'.format(stage)):
