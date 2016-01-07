@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import time
 
 """
 From http://wiki.scipy.org/Cookbook/SegmentAxis
@@ -119,3 +120,32 @@ def mkdir_p(path):
     except FileNotFoundError:
         if path == '':
             pass
+
+
+class Timer(object):
+    """ Time code execution.
+
+    Example usage::
+
+        with Timer as t:
+            sleep(10)
+        print(t.secs)
+
+    """
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+        self.secs = 0
+        self.msecs = 0
+        self.start = 0
+        self.end = 0
+
+    def __enter__(self):
+        self.start = time.time()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.time()
+        self.secs = self.end - self.start
+        self.msecs = self.secs * 1000  # millisecs
+        if self.verbose:
+            print('elapsed time: %f ms' % self.msecs)
