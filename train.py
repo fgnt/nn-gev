@@ -15,6 +15,7 @@ from chime_data import prepare_training_data
 from nn_models import BLSTMMaskEstimator
 from nn_models import SimpleFWMaskEstimator
 from fgnt.utils import Timer
+from fgnt.utils import mkdir_p
 
 parser = argparse.ArgumentParser(description='NN GEV training')
 parser.add_argument('data_dir', help='Directory used for the training data '
@@ -68,11 +69,14 @@ log.debug('Loaded file lists')
 if args.model_type == 'BLSTM':
     model = BLSTMMaskEstimator()
     model_save_dir = os.path.join(args.data_dir, 'BLSTM_model')
+    mkdir_p(model_save_dir)
 elif args.model_type == 'FW':
     model = SimpleFWMaskEstimator()
     model_save_dir = os.path.join(args.data_dir, 'FW_model')
+    mkdir_p(model_save_dir)
 else:
     raise ValueError('Unknown model type. Possible are "BLSTM" and "FW"')
+
 if args.gpu >= 0:
     cuda.get_device(args.gpu).use()
     model.to_gpu()
