@@ -3,12 +3,12 @@ import numpy
 from chainer import cuda
 from chainer import function
 from chainer.utils import type_check
+
 if cuda.available:
-    import cupy
+    pass
 
 
 class SequenceBatchNormalizationFunction(function.Function):
-
     """Batch normalization on sequential output.
 
     This batch normalization is suited for use cases where the dimension of the
@@ -44,23 +44,22 @@ class SequenceBatchNormalizationFunction(function.Function):
         >>> y, c, h = model.lstm(act_norm)
 
     """
-    parameter_names = ('gamma',  'beta')
+    parameter_names = ('gamma', 'beta')
     gradient_names = ('ggamma', 'gbeta')
-
 
     def __init__(self, eps=1e-8):
         self.eps = eps
 
     def check_type_forward(self, in_types):
         type_check.expect(in_types.size() == 3)
-        x_type, gamma_type, beta_type= in_types
+        x_type, gamma_type, beta_type = in_types
 
         self_ = type_check.Variable(self, 'self')
         type_check.expect(
-            x_type.dtype == numpy.float32,
-            x_type.ndim == 3,
-            x_type.shape[2] == gamma_type.shape[0],
-            x_type.shape[2] == beta_type.shape[0],
+                x_type.dtype == numpy.float32,
+                x_type.ndim == 3,
+                x_type.shape[2] == gamma_type.shape[0],
+                x_type.shape[2] == beta_type.shape[0],
         )
 
     def check_type_backward(self, in_types, out_types):
@@ -94,7 +93,7 @@ class SequenceBatchNormalizationFunction(function.Function):
 
         coeff = gamma / self.std
 
-        gx = coeff * (gy - self.x_hat * ggamma/m - gbeta/m)
+        gx = coeff * (gy - self.x_hat * ggamma / m - gbeta / m)
         return gx, ggamma, gbeta
 
     def forward_gpu(self, inputs):
@@ -104,12 +103,12 @@ class SequenceBatchNormalizationFunction(function.Function):
         var = x.var(axis=(0, 1), keepdims=True) + self.eps
 
         normalize = cuda.elementwise(
-            'T x, T var, T mean, T gamma, T beta',
-            'T std, T x_hat, T y',
-            'std = sqrtf(var);'
-            'x_hat = (x - mean) / std;'
-            'y = gamma * x_hat + beta;',
-            'normalize')
+                'T x, T var, T mean, T gamma, T beta',
+                'T std, T x_hat, T y',
+                'std = sqrtf(var);'
+                'x_hat = (x - mean) / std;'
+                'y = gamma * x_hat + beta;',
+                'normalize')
 
         self.std, self.x_hat, y = normalize(x, var, mean, gamma, beta)
 

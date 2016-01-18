@@ -1,13 +1,12 @@
 import string
+import threading
 
+import librosa
 import numpy as np
 import scipy
 from numpy.fft import rfft, irfft
 from scipy import signal
-import librosa
-
 from scipy.io.wavfile import write as wav_write
-import threading
 
 from fgnt.utils import segment_axis
 

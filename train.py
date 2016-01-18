@@ -12,10 +12,10 @@ from chainer import serializers
 from tqdm import tqdm
 
 from chime_data import prepare_training_data
-from nn_models import BLSTMMaskEstimator
-from nn_models import SimpleFWMaskEstimator
 from fgnt.utils import Timer
 from fgnt.utils import mkdir_p
+from nn_models import BLSTMMaskEstimator
+from nn_models import SimpleFWMaskEstimator
 
 parser = argparse.ArgumentParser(description='NN GEV training')
 parser.add_argument('data_dir', help='Directory used for the training data '
@@ -47,7 +47,7 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 log.addHandler(fh)
@@ -55,7 +55,8 @@ log.addHandler(ch)
 
 if args.chime_dir != '':
     log.info(
-        'Preparing training data and storing it in {}'.format(args.data_dir))
+            'Preparing training data and storing it in {}'.format(
+                    args.data_dir))
     prepare_training_data(args.chime_dir, args.data_dir)
 
 flists = dict()
@@ -115,7 +116,7 @@ best_epoch = 0
 best_cv_loss = np.inf
 while (epoch < args.max_epochs and not exhausted):
     log.info('Starting epoch {}. Best CV loss was {} at epoch {}'.format(
-        epoch, best_cv_loss, best_epoch
+            epoch, best_cv_loss, best_epoch
     ))
 
     # training
@@ -125,7 +126,6 @@ while (epoch < args.max_epochs and not exhausted):
     t_fw = 0
     t_bw = 0
     for i in tqdm(perm, desc='Training epoch {}'.format(epoch)):
-
         with Timer() as t:
             IBM_X, IBM_N, Y = _create_batch(flists['tr'][i])
         t_io += t.msecs
@@ -154,11 +154,11 @@ while (epoch < args.max_epochs and not exhausted):
     loss_cv = sum_loss_cv / len(flists['dt'])
 
     log.info(
-        'Finished epoch {}. '
-        'Mean loss during training/cross-validation: {:.3f}/{:.3f}'.format(
-            epoch, loss_tr, loss_cv))
+            'Finished epoch {}. '
+            'Mean loss during training/cross-validation: {:.3f}/{:.3f}'.format(
+                    epoch, loss_tr, loss_cv))
     log.info('Timings: I/O: {:.2f}s | FW: {:.2f}s | BW: {:.2f}s'.format(
-            t_io/1000, t_fw/1000, t_bw/1000))
+            t_io / 1000, t_fw / 1000, t_bw / 1000))
 
     if loss_cv < best_cv_loss:
         best_epoch = epoch

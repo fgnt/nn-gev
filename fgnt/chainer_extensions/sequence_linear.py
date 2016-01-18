@@ -1,6 +1,7 @@
 import numpy
 
 from chainer import cuda
+
 if cuda.available:
     import cupy
     from cupy.cuda.cublas import sgemm
@@ -52,9 +53,9 @@ class SequenceLinearFunction(function.Function):
         x_type, W, *_ = in_types
 
         type_check.expect(
-            x_type.dtype == numpy.float32,
-            x_type.ndim == 3,
-            x_type.shape[2] == W.shape[0],
+                x_type.dtype == numpy.float32,
+                x_type.ndim == 3,
+                x_type.shape[2] == W.shape[0],
         )
 
     def check_type_backward(self, in_types, out_types):
@@ -73,7 +74,7 @@ class SequenceLinearFunction(function.Function):
     def forward_gpu(self, inputs):
         x = inputs[0]
         W = inputs[1]
-        # Prepare BLAS call for hidden-hidden activation
+        # Prepare BLAS call
         handle = cuda.Device().cublas_handle
         k, m = W.shape
         n, l = x.shape[0] * x.shape[1], x.shape[2]
@@ -83,7 +84,7 @@ class SequenceLinearFunction(function.Function):
         Wx = cupy.empty((x.shape[0], x.shape[1], W.shape[1]),
                         dtype=numpy.float32)
         sgemm(handle, False, False, m, n, k, 1, W.data.ptr, ldb,
-                  x.data.ptr, lda, 0, Wx.data.ptr, ldc)
+              x.data.ptr, lda, 0, Wx.data.ptr, ldc)
         if len(inputs) > 2:
             b = inputs[2]
             Wx += b
@@ -102,7 +103,6 @@ class SequenceLinearFunction(function.Function):
         else:
             return gy_2d.dot(W.T).reshape(x.shape), gW
 
-
     def backward_gpu(self, inputs, gy):
         x = inputs[0]
         W = inputs[1]
@@ -115,7 +115,7 @@ class SequenceLinearFunction(function.Function):
         ldb = max(1, gy[0].shape[-1])
         ldc = max(1, m)
         sgemm(handle, False, True, m, n, k, 1, gy[0].data.ptr, ldb,
-                  x.data.ptr, lda, 1, gW.data.ptr, ldc)
+              x.data.ptr, lda, 1, gW.data.ptr, ldc)
         # Backprop input
         m, k = W.shape
         n, l = x.shape[0] * x.shape[1], gy[0].shape[2]
@@ -124,7 +124,7 @@ class SequenceLinearFunction(function.Function):
         ldc = max(1, m)
         gx = cuda.cupy.empty_like(x)
         sgemm(handle, True, False, m, n, k, 1, W.data.ptr, ldb,
-                  gy[0].data.ptr, lda, 0, gx.data.ptr, ldc)
+              gy[0].data.ptr, lda, 0, gx.data.ptr, ldc)
         # Backprop bias
         if len(inputs) > 2:
             gy_2d = _as_mat(gy[0])

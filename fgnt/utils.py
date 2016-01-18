@@ -1,10 +1,12 @@
-import numpy as np
 import os
 import time
+
+import numpy as np
 
 """
 From http://wiki.scipy.org/Cookbook/SegmentAxis
 """
+
 
 def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     """Generate a new array that chops the given array along the given axis into overlapping frames.
@@ -42,22 +44,22 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     l = a.shape[axis]
 
     if overlap >= length: raise ValueError(
-        "frames cannot overlap by more than 100%")
+            "frames cannot overlap by more than 100%")
     if overlap < 0 or length <= 0: raise ValueError(
-        "overlap must be nonnegative and length must be positive")
+            "overlap must be nonnegative and length must be positive")
 
     if l < length or (l - length) % (length - overlap):
         if l > length:
             roundup = length + (1 + (l - length) // (length - overlap)) * (
-            length - overlap)
+                length - overlap)
             rounddown = length + ((l - length) // (length - overlap)) * (
-            length - overlap)
+                length - overlap)
         else:
             roundup = length
             rounddown = 0
         assert rounddown < l < roundup
         assert roundup == rounddown + (length - overlap) or (
-        roundup == length and rounddown == 0)
+            roundup == length and rounddown == 0)
         a = a.swapaxes(-1, axis)
 
         if end == 'cut':
@@ -77,8 +79,8 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
 
     l = a.shape[axis]
     if l == 0: raise ValueError(
-        "Not enough data points to segment array in 'cut' mode; "
-        "try 'pad' or 'wrap'")
+            "Not enough data points to segment array in 'cut' mode; "
+            "try 'pad' or 'wrap'")
     assert l >= length
     assert (l - length) % (length - overlap) == 0
     n = 1 + (l - length) // (length - overlap)
@@ -132,6 +134,7 @@ class Timer(object):
         print(t.secs)
 
     """
+
     def __init__(self, verbose=False):
         self.verbose = verbose
         self.secs = 0

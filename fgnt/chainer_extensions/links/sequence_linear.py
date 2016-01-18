@@ -1,15 +1,14 @@
 import numpy
-
-from fgnt.chainer_extensions.sequence_linear import sequence_linear_function
 from chainer import link
-from fgnt.chainer_extensions import weight_init
-from fgnt.chainer_extensions.sequenze_batch_normalization import\
-    sequence_batch_normalization_function
 from chainer.functions.noise.dropout import dropout
+
+from fgnt.chainer_extensions import weight_init
+from fgnt.chainer_extensions.sequence_linear import sequence_linear_function
+from fgnt.chainer_extensions.sequenze_batch_normalization import \
+    sequence_batch_normalization_function
 
 
 class SequenceLinear(link.Link):
-
     """Sequence linear layer (fully-connected layer/affine transformation).
 
     This link holds a weight matrix ``W`` and optional a bias vector ``b``.

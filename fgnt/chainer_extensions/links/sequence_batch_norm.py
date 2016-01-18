@@ -1,12 +1,11 @@
 import numpy
-
 from chainer import link
-from fgnt.chainer_extensions.sequenze_batch_normalization import\
+
+from fgnt.chainer_extensions.sequenze_batch_normalization import \
     sequence_batch_normalization_function
 
 
 class SequenceBatchNorm(link.Link):
-
     def __init__(self, size):
         super().__init__()
         self.add_param('gamma', (size,))

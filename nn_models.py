@@ -1,9 +1,9 @@
 import chainer.functions as F
 from chainer.link import Chain
-from fgnt.chainer_extensions.links.sequence_lstms import SequenceBLSTM
-from fgnt.chainer_extensions.links.sequence_linear import SequenceLinear
 
-from fgnt.chainer_addons import binary_cross_entropy
+from fgnt.chainer_extensions.binary_cross_entropy import binary_cross_entropy
+from fgnt.chainer_extensions.links.sequence_linear import SequenceLinear
+from fgnt.chainer_extensions.links.sequence_lstms import SequenceBLSTM
 
 
 class MaskEstimator(Chain):

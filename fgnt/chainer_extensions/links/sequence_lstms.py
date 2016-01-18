@@ -1,14 +1,14 @@
 import numpy
-
 from chainer import link
 from chainer.functions.array.concat import concat
 from chainer.functions.noise.dropout import dropout
+from chainer.utils import weight_init
+
 from fgnt.chainer_extensions.sequence_linear \
     import sequence_linear_function
 from fgnt.chainer_extensions.sequence_lstm import sequence_lstm_function
 from fgnt.chainer_extensions.sequenze_batch_normalization import \
     sequence_batch_normalization_function
-from chainer.utils import weight_init
 
 
 class SequenceLSTM(link.Link):
@@ -83,15 +83,15 @@ class SequenceBLSTM(link.Chain):
                  initial_bias=None, normalized=False, concat=False,
                  stateful=False):
         super(SequenceBLSTM, self).__init__(
-            lstm_fw=SequenceLSTM(in_size, out_size, bias, nobias,
-                                 W_x_fw, W_h_fw, initial_bias,
-                                 normalized=normalized,
-                                 stateful=stateful),
-            lstm_bw=SequenceLSTM(in_size, out_size, bias, nobias,
-                                 W_x_bw, W_h_bw, initial_bias,
-                                 reverse=True,
-                                 normalized=normalized,
-                                 stateful=stateful)
+                lstm_fw=SequenceLSTM(in_size, out_size, bias, nobias,
+                                     W_x_fw, W_h_fw, initial_bias,
+                                     normalized=normalized,
+                                     stateful=stateful),
+                lstm_bw=SequenceLSTM(in_size, out_size, bias, nobias,
+                                     W_x_bw, W_h_bw, initial_bias,
+                                     reverse=True,
+                                     normalized=normalized,
+                                     stateful=stateful)
         )
         self.add_persistent('concat', concat)
         self.add_persistent('stateful', stateful)

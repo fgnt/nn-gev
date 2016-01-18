@@ -1,9 +1,9 @@
+import chainer
 import numpy
+import scipy.special
 import six
 from chainer import cuda
 from chainer import function
-import chainer
-import scipy.special
 
 F32 = numpy.float32
 

@@ -1,18 +1,19 @@
 import argparse
+import os
+
 import numpy as np
+from chainer import Variable
 from chainer import cuda
 from chainer import serializers
 from tqdm import tqdm
-import os
-from chainer import Variable
-from fgnt.utils import mkdir_p
 
 from chime_data import gen_flist_simu, \
     gen_flist_real, get_audio_data, get_audio_data_with_context
-from nn_models import BLSTMMaskEstimator, SimpleFWMaskEstimator
-from fgnt.signal_processing import audiowrite, stft, istft
 from fgnt.beamforming import gev_wrapper_on_masks
+from fgnt.signal_processing import audiowrite, stft, istft
 from fgnt.utils import Timer
+from fgnt.utils import mkdir_p
+from nn_models import BLSTMMaskEstimator, SimpleFWMaskEstimator
 
 parser = argparse.ArgumentParser(description='NN GEV beamforming')
 parser.add_argument('flist',

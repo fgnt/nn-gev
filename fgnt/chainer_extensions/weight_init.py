@@ -1,6 +1,7 @@
 import numpy
 from scipy.linalg import svd
 
+
 def orthogonal(size, sparsity=-1, scale=1, dtype=numpy.float32):
     sizeX = size
     sizeY = size
@@ -34,18 +35,20 @@ def uniform(size, low=None, high=None, dtype=numpy.float32):
         if high is None:
             high = numpy.sqrt(6. / sum(size))
         return numpy.asarray(
-            numpy.random.uniform(
-                low=low,
-                high=high,
-                size=size
-            ),
-            dtype=dtype)
+                numpy.random.uniform(
+                        low=low,
+                        high=high,
+                        size=size
+                ),
+                dtype=dtype)
     elif dtype is numpy.complex64:
         return (uniform(size, low=low, high=high, dtype=numpy.float32) +
-                1j * uniform(size, low=low, high=high, dtype=numpy.float32)).astype(numpy.complex64)
+                1j * uniform(size, low=low, high=high,
+                             dtype=numpy.float32)).astype(numpy.complex64)
     elif dtype is numpy.complex128:
         return (uniform(size, low=low, high=high, dtype=numpy.float64) +
-                1j * uniform(size, low=low, high=high, dtype=numpy.float64)).astype(numpy.complex128)
+                1j * uniform(size, low=low, high=high,
+                             dtype=numpy.float64)).astype(numpy.complex128)
     else:
         raise ValueError('Requested dtype not available.')
 
