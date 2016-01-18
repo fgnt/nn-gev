@@ -16,8 +16,8 @@ class MaskEstimator(Chain):
 
     def train_and_cv(self, Y, IBM_N, IBM_X, dropout=0.):
         N_mask_hat, X_mask_hat = self._propagate(Y, dropout)
-        loss_X = F.binary_cross_entropy(X_mask_hat, IBM_X)
-        loss_N = F.binary_cross_entropy(N_mask_hat, IBM_N)
+        loss_X = binary_cross_entropy(X_mask_hat, IBM_X)
+        loss_N = binary_cross_entropy(N_mask_hat, IBM_N)
         loss = (loss_X + loss_N) / 2
         return loss
 
@@ -50,8 +50,8 @@ class BLSTMMaskEstimator(MaskEstimator):
 class SimpleFWMaskEstimator(MaskEstimator):
     def __init__(self):
         relu_1 = SequenceLinear(513, 1024, normalized=True)
-        noise_mask_estimate = SequenceLinear(513, 513, normalized=True)
-        speech_mask_estimate = SequenceLinear(513, 513, normalized=True)
+        noise_mask_estimate = SequenceLinear(1024, 513, normalized=True)
+        speech_mask_estimate = SequenceLinear(1024, 513, normalized=True)
 
         super().__init__(
                 relu_1=relu_1,
