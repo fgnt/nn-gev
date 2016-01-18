@@ -9,7 +9,7 @@ from fgnt.utils import mkdir_p
 
 from chime_data import gen_flist_simu, \
     gen_flist_real, get_audio_data, get_audio_data_with_context
-from nn_models import BLSTMMaskEstimator
+from nn_models import BLSTMMaskEstimator, SimpleFWMaskEstimator
 from fgnt.signal_processing import audiowrite, stft, istft
 from fgnt.beamforming import gev_wrapper_on_masks
 from fgnt.utils import Timer
@@ -24,12 +24,20 @@ parser.add_argument('output_dir',
                          'be stored.')
 parser.add_argument('model',
                     help='Trained model file')
+parser.add_argument('model_type',
+                    help='Type of model (BLSTM or FW)')
 parser.add_argument('--gpu', '-g', default=-1, type=int,
                     help='GPU ID (negative value indicates CPU)')
 args = parser.parse_args()
 
 # Prepare model
-model = BLSTMMaskEstimator()
+if args.model_type == 'BLSTM':
+    model = BLSTMMaskEstimator()
+elif args.model_type == 'FW':
+    model = SimpleFWMaskEstimator()
+else:
+    raise ValueError('Unknown model type. Possible are "BLSTM" and "FW"')
+
 serializers.load_hdf5(args.model, model)
 if args.gpu >= 0:
     cuda.get_device(args.gpu).use()
@@ -60,9 +68,9 @@ for cur_line in tqdm(flist):
     with Timer() as t:
         if scenario == 'simu':
             audio_data = get_audio_data(cur_line)
-            context_frames = 0
+            context_samples = 0
         elif scenario == 'real':
-            audio_data, context_frames = get_audio_data_with_context(
+            audio_data, context_samples = get_audio_data_with_context(
                     cur_line[0], cur_line[1], cur_line[2])
     t_io += t.msecs
     Y = stft(audio_data, time_dim=1).transpose((1, 0, 2))
@@ -96,7 +104,7 @@ for cur_line in tqdm(flist):
             '{}_{}_{}.wav'.format(spk, wsj_name, env.upper())
     )
     with Timer() as t:
-        audiowrite(istft(Y_hat), filename, 16000, True, True)
+        audiowrite(istft(Y_hat)[context_samples:], filename, 16000, True, True)
     t_io += t.msecs
 
 print('Finished')
