@@ -21,10 +21,11 @@ def get_power_spectral_density_matrix(observation, mask=None):
     if mask.ndim == 2:
         mask = mask[:, np.newaxis, :]
 
-    mask /= np.maximum(np.sum(mask, axis=-1, keepdims=True), 1e-6)
+    normalization = np.maximum(np.sum(mask, axis=-1, keepdims=True), 1e-6)
 
     psd = np.einsum('...dt,...et->...de', mask * observation,
                     observation.conj())
+    psd /= normalization
     return psd
 
 
