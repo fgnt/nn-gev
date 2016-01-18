@@ -51,7 +51,7 @@ def get_audio_data(file_template, postfix='', ch_range=range(1, 7)):
 def get_audio_data_with_context(embedded_template, t_start, t_end,
                                 ch_range=range(1, 7)):
     start_context = max((t_start-5), 0)
-    context_frames = (t_start - start_context) * 16000
+    context_samples = (t_start - start_context) * 16000
     audio_data = list()
     for ch in ch_range:
         audio_data.append(audioread(
@@ -59,7 +59,7 @@ def get_audio_data_with_context(embedded_template, t_start, t_end,
         offset=start_context, duration=t_end-start_context)[None, :])
     audio_data = np.concatenate(audio_data, axis=0)
     audio_data = audio_data.astype(np.float32)
-    return audio_data, context_frames
+    return audio_data, context_samples
 
 
 def prepare_training_data(chime_data_dir, dest_dir):
