@@ -2,8 +2,8 @@ import numpy
 from chainer import link
 from chainer.functions.array.concat import concat
 from chainer.functions.noise.dropout import dropout
-from chainer.utils import weight_init
 
+from fgnt.chainer_extensions import weight_init
 from fgnt.chainer_extensions.sequence_linear \
     import sequence_linear_function
 from fgnt.chainer_extensions.sequence_lstm import sequence_lstm_function
@@ -50,8 +50,8 @@ class SequenceLSTM(link.Link):
         self.reset_states()
 
     def reset_states(self):
-        self.h = None
-        self.c = None
+        self.h_prev = None
+        self.c_prev = None
 
     def __call__(self, x, **kwargs):
         """Applies the lstm layer.
@@ -71,9 +71,15 @@ class SequenceLSTM(link.Link):
         if self.normalized:
             lstm_in = sequence_batch_normalization_function(lstm_in, self.gamma,
                                                             self.beta)
+        if self.stateful:
+            c_prev = self.c_prev
+            h_prev = self.h_prev
+        else:
+            c_prev = None
+            h_prev = None
         lstm_out, self.h_prev, self.c_prev = \
-            sequence_lstm_function(lstm_in, self.W_h, None, None, self.reverse,
-                                   dropout_rate_hidden_hidden)
+            sequence_lstm_function(lstm_in, self.W_h, c_prev, h_prev,
+                                   self.reverse, dropout_rate_hidden_hidden)
         return lstm_out
 
 
