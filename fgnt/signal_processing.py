@@ -131,11 +131,16 @@ def stft(time_signal, time_dim=None, size=1024, shift=256,
         time_signal = np.pad(time_signal, pad, mode='constant')
 
     # Pad with trailing zeros, to have an integral number of frames.
-    frames = _samples_to_stft_frames(time_signal.shape[time_dim], size, shift)
-    samples = _stft_frames_to_samples(frames, size, shift)
-    pad = [(0, 0)] * time_signal.ndim
-    pad[time_dim] = [0, samples - time_signal.shape[time_dim]]
-    time_signal = np.pad(time_signal, pad, mode='constant')
+    currentSamples = time_signal.shape[time_dim]
+    frames = _samples_to_stft_frames(currentSamples, size, shift)
+    samplesWithIntegralNumberOfFrames = _stft_frames_to_samples(frames, size, shift)
+    assert samplesWithIntegralNumberOfFrames <= currentSamples
+    if (currentSamples > samplesWithIntegralNumberOfFrames):
+        newSamples = _stft_frames_to_samples(frames + 1, size, shift)
+        assert newSamples > currentSamples
+        pad = [(0, 0)] * time_signal.ndim
+        pad[time_dim] = (0, newSamples - currentSamples)
+        time_signal = np.pad(time_signal, pad, mode='constant')
 
     if window_length is None:
         window = window(size)
