@@ -102,7 +102,7 @@ def get_gev_vector(target_psd_matrix, noise_psd_matrix):
     return beamforming_vector
 
 
-def blind_analytic_normalization(vector, noise_psd_matrix):
+def blind_analytic_normalization_legacy(vector, noise_psd_matrix):
     bins, sensors = vector.shape
     normalization = np.zeros(bins)
     for f in range(bins):
@@ -114,6 +114,43 @@ def blind_analytic_normalization(vector, noise_psd_matrix):
                 vector[f, :]))
 
     return vector * normalization[:, np.newaxis]
+
+
+def blind_analytic_normalization(vector, noise_psd_matrix, eps=0):
+    """Reduces distortions in beamformed ouptput.
+        
+    :param vector: Beamforming vector
+        with shape (..., sensors)
+    :param noise_psd_matrix:
+        with shape (..., sensors, sensors)
+    :return: Scaled Deamforming vector
+        with shape (..., sensors)
+    
+    >>> vector = np.random.normal(size=(5, 6)).view(np.complex128)
+    >>> vector.shape
+    (5, 3)
+    >>> noise_psd_matrix = np.random.normal(size=(5, 3, 6)).view(np.complex128)
+    >>> noise_psd_matrix = noise_psd_matrix + noise_psd_matrix.swapaxes(-2, -1)
+    >>> noise_psd_matrix.shape
+    (5, 3, 3)
+    >>> w1 = blind_analytic_normalization_legacy(vector, noise_psd_matrix)
+    >>> w2 = blind_analytic_normalization(vector, noise_psd_matrix)
+    >>> np.testing.assert_allclose(w1, w2)
+        
+    """
+    nominator = np.einsum(
+        '...a,...ab,...bc,...c->...',
+        vector.conj(), noise_psd_matrix, noise_psd_matrix, vector
+    )
+    nominator = np.abs(np.sqrt(nominator))
+
+    denominator = np.einsum(
+        '...a,...ab,...b->...', vector.conj(), noise_psd_matrix, vector
+    )
+    denominator = np.abs(denominator)
+
+    normalization = nominator / (denominator + eps)
+    return vector * normalization[..., np.newaxis]
 
 
 def apply_beamforming_vector(vector, mix):
