@@ -57,7 +57,7 @@ else
         mat=json2mat([apath set '_bth.json']);
         for utt_ind=1:length(mat),
             oname=[mat{utt_ind}.speaker '_' mat{utt_ind}.wsj_name '_BTH'];
-            o=wavread([upath set '_bth/' oname '.CH0.wav']);
+            o=audioread([upath set '_bth/' oname '.CH0.wav']);
             O=stft_multi(o.',wlen_sub);
             nfram=nfram+size(O,2);
             bth_spec=bth_spec+sum(abs(O).^2,2);
@@ -71,7 +71,7 @@ else
     olist=dir([upath 'tr05_org/*.wav']);
     for f=1:length(olist),
         oname=olist(f).name;
-        o=wavread([upath 'tr05_org/' oname]);
+        o=audioread([upath 'tr05_org/' oname]);
         O=stft_multi(o.',wlen_sub);
         nfram=nfram+size(O,2);
         org_spec=org_spec+sum(abs(O).^2,2);
@@ -93,7 +93,8 @@ else
     ir_mat=json2mat([apath 'tr05_real.json']);
     for utt_ind=1:length(mat),
         oname=[mat{utt_ind}.speaker '_' mat{utt_ind}.wsj_name '_ORG'];
-        osize=wavread([upath 'tr05_org/' oname '.wav'],'size');
+        oinfo = audioinfo([upath 'tr05_org/' oname '.wav']);
+        osize=[oinfo.TotalSamples, 1];
         dur=osize(1)/16000;
         envirs={'BUS' 'CAF' 'PED' 'STR'};
         envir=envirs{randperm(4,1)}; % draw a random environment
@@ -112,7 +113,8 @@ else
         while nfail,
             bname=blist(randperm(length(blist),1)).name(1:end-8); % draw a random background recording
             mat{utt_ind}.noise_wavfile=bname;
-            bsize=wavread([bpath bname '.CH1.wav'],'size');
+            binfo = audioinfo([bpath bname '.CH1.wav']);
+            bsize=[binfo.TotalSamples, 1];
             bdur=bsize(1)/16000;
             mat{utt_ind}.noise_start=ceil(rand(1)*(bdur-dur)*16000)/16000; % draw a random time
             mat{utt_ind}.noise_end=mat{utt_ind}.noise_start+dur;
@@ -121,7 +123,7 @@ else
             nend=round(mat{utt_ind}.noise_end*16000);
             n=zeros(nend-nbeg+1,nchan);
             for c=1:nchan,
-                n(:,c)=wavread([bpath nname '.CH' int2str(c) '.wav'],[nbeg nend]);
+                n(:,c)=audioread([bpath nname '.CH' int2str(c) '.wav'],[nbeg nend]);
             end
             npow=sum(n.^2,1);
             npow=10*log10(npow/max(npow));
@@ -142,7 +144,7 @@ else
             iend=round(mat{utt_ind}.ir_end*16000);
             x=zeros(iend-ibeg+1,nchan);
             for c=1:nchan,
-                x(:,c)=wavread([cpath iname '.CH' int2str(c) '.wav'],[ibeg iend]);
+                x(:,c)=audioread([cpath iname '.CH' int2str(c) '.wav'],[ibeg iend]);
             end
             xpow=sum(x.^2,1);
             xpow=10*log10(xpow/max(xpow));
@@ -177,13 +179,13 @@ for utt_ind=1:length(mat),
     nend=round(mat{utt_ind}.noise_end*16000);
 
     % Load WAV files
-    o=wavread([upath 'tr05_org/' oname '.wav']);
-    [r,fs]=wavread([cpath iname '.CH0.wav'],[ibeg iend]);
+    o=audioread([upath 'tr05_org/' oname '.wav']);
+    [r,fs]=audioread([cpath iname '.CH0.wav'],[ibeg iend]);
     x=zeros(iend-ibeg+1,nchan);
     n=zeros(nend-nbeg+1,nchan);
     for c=1:nchan,
-        x(:,c)=wavread([cpath iname '.CH' int2str(c) '.wav'],[ibeg iend]);
-        n(:,c)=wavread([bpath nname '.CH' int2str(c) '.wav'],[nbeg nend]);
+        x(:,c)=audioread([cpath iname '.CH' int2str(c) '.wav'],[ibeg iend]);
+        n(:,c)=audioread([bpath nname '.CH' int2str(c) '.wav'],[nbeg nend]);
     end
     
     % Compute the STFT (short window)
@@ -234,7 +236,7 @@ for utt_ind=1:length(mat),
     
     % Write WAV file
     for c=1:nchan,
-        wavwrite(xsimu(:,c),fs,[udir uname '.CH' int2str(c) '.wav']);
+        audiowrite([udir uname '.CH' int2str(c) '.wav'], xsimu(:,c),fs);
         audiowrite([udir_ext uname '.CH' int2str(c) '.Noise.wav'],n(:, c),fs);
         audiowrite([udir_ext uname '.CH' int2str(c) '.Clean.wav'],ysimu(:, c), fs);
     end
@@ -295,12 +297,12 @@ for set_ind=1:length(sets),
         tend=round(mat{utt_ind}.noise_end*16000);
         
         % Load WAV files
-        o=wavread([upath set '_bth/' oname '.CH0.wav']);
-        [r,fs]=wavread([cpath nname '.CH0.wav'],[tbeg tend]);
+        o=audioread([upath set '_bth/' oname '.CH0.wav']);
+        [r,fs]=audioread([cpath nname '.CH0.wav'],[tbeg tend]);
         nsampl=length(r);
         x=zeros(nsampl,nchan);
         for c=1:nchan,
-            x(:,c)=wavread([cpath nname '.CH' int2str(c) '.wav'],[tbeg tend]);
+            x(:,c)=audioread([cpath nname '.CH' int2str(c) '.wav'],[tbeg tend]);
         end
         
         % Compute the STFT (short window)
@@ -346,7 +348,7 @@ for set_ind=1:length(sets),
         
         % Write WAV file
         for c=1:nchan,
-            wavwrite(xsimu(:,c),fs,[udir uname '.CH' int2str(c) '.wav']);
+            audiowrite([udir uname '.CH' int2str(c) '.wav'], xsimu(:,c),fs);
             audiowrite([udir_ext uname '.CH' int2str(c) '.Noise.wav'],n(:, c),fs);
         	audiowrite([udir_ext uname '.CH' int2str(c) '.Clean.wav'],ysimu(:, c), fs);
         end
