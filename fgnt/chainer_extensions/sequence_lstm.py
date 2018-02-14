@@ -378,15 +378,13 @@ def sequence_lstm_function(x, W_h, c_prev=None, h_prev=None, reverse=False,
         xp = cuda.get_array_module(x.data)
         c_prev = chainer.Variable(
                 _make_initial_state(xp, x.data.shape[1], W_h.data.shape[0]),
-                name='c_init',
-                volatile='auto')
+                name='c_init')
 
     if h_prev is None:
         xp = cuda.get_array_module(x.data)
         h_prev = chainer.Variable(
                 _make_initial_state(xp, x.data.shape[1], W_h.data.shape[0]),
-                name='h_init',
-                volatile='auto')
+                name='h_init')
 
     return SequenceLSTMFunction(reverse, dropout, dropout_scale)(
             x, W_h, c_prev, h_prev)

@@ -100,9 +100,9 @@ if args.resume:
 def _create_batch(file, volatile=False):
     with open(os.path.join(args.data_dir, file), 'rb') as fid:
         data = pickle.load(fid)
-    IBM_X = Variable(data['IBM_X'], volatile=volatile)
-    IBM_N = Variable(data['IBM_N'], volatile=volatile)
-    Y = Variable(data['Y_abs'], volatile=volatile)
+    IBM_X = Variable(data['IBM_X'])
+    IBM_N = Variable(data['IBM_N'])
+    Y = Variable(data['Y_abs'])
     if args.gpu >= 0:
         for var in [IBM_X, IBM_N, Y]:
             var.to_gpu(args.gpu)

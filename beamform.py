@@ -2,6 +2,7 @@ import argparse
 import os
 
 import numpy as np
+import chainer
 from chainer import Variable
 from chainer import cuda
 from chainer import serializers
@@ -44,6 +45,7 @@ if args.gpu >= 0:
     cuda.get_device(args.gpu).use()
     model.to_gpu()
 xp = np if args.gpu < 0 else cuda.cupy
+chainer.no_backprop_mode()
 
 stage = args.flist[:2]
 scenario = args.flist.split('_')[-1]
@@ -75,7 +77,7 @@ for cur_line in tqdm(flist):
                     cur_line[0], cur_line[1], cur_line[2])
     t_io += t.msecs
     Y = stft(audio_data, time_dim=1).transpose((1, 0, 2))
-    Y_var = Variable(np.abs(Y).astype(np.float32), True)
+    Y_var = Variable(np.abs(Y).astype(np.float32))
     if args.gpu >= 0:
         Y_var.to_gpu(args.gpu)
     with Timer() as t:
