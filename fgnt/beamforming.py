@@ -4,7 +4,7 @@ from scipy.linalg import eig
 from scipy.linalg import eigh
 
 
-def get_power_spectral_density_matrix(observation, mask=None):
+def get_power_spectral_density_matrix(observation, mask=None, normalize=True):
     """
     Calculates the weighted power spectral density matrix.
 
@@ -21,12 +21,19 @@ def get_power_spectral_density_matrix(observation, mask=None):
     if mask.ndim == 2:
         mask = mask[:, np.newaxis, :]
 
-    normalization = np.maximum(np.sum(mask, axis=-1, keepdims=True), 1e-6)
-
     psd = np.einsum('...dt,...et->...de', mask * observation,
                     observation.conj())
-    psd /= normalization
+    if normalize:
+        normalization = np.sum(mask, axis=-1, keepdims=True)
+        psd /= normalization
     return psd
+
+
+def condition_covariance(x, gamma):
+    """see https://stt.msu.edu/users/mauryaas/Ashwini_JPEN.pdf (2.3)"""
+    scale = gamma * np.trace(x) / x.shape[-1]
+    scaled_eye = np.eye(x.shape[-1]) * scale
+    return (x + scaled_eye) / (1 + gamma)
 
 
 def get_pca_vector(target_psd_matrix):
@@ -95,10 +102,12 @@ def get_gev_vector(target_psd_matrix, noise_psd_matrix):
         try:
             eigenvals, eigenvecs = eigh(target_psd_matrix[f, :, :],
                                         noise_psd_matrix[f, :, :])
+            beamforming_vector[f, :] = eigenvecs[:, -1]
         except np.linalg.LinAlgError:
-            eigenvals, eigenvecs = eig(target_psd_matrix[f, :, :],
-                                       noise_psd_matrix[f, :, :])
-        beamforming_vector[f, :] = eigenvecs[:, np.argmax(eigenvals)]
+            print('LinAlg error for frequency {}'.format(f))
+            beamforming_vector[f, :] = (
+                np.ones((sensors,)) / np.trace(noise_psd_matrix[f]) * sensors
+            )
     return beamforming_vector
 
 
@@ -157,31 +166,47 @@ def apply_beamforming_vector(vector, mix):
     return np.einsum('...a,...at->...t', vector.conj(), mix)
 
 
+def phase_correction(vector):
+    """Phase correction to reduce distortions due to phase inconsistencies.
+    Args:
+        vector: Beamforming vector with shape (..., bins, sensors).
+    Returns: Phase corrected beamforming vectors. Lengths remain.
+    """
+    w = vector.copy()
+    F, D = w.shape
+    for f in range(1, F):
+        w[f, :] *= np.exp(-1j*np.angle(
+            np.sum(w[f, :] * w[f-1, :].conj(), axis=-1, keepdims=True)))
+    return w
+
+
 def gev_wrapper_on_masks(mix, noise_mask=None, target_mask=None,
                          normalization=False):
     if noise_mask is None and target_mask is None:
         raise ValueError('At least one mask needs to be present.')
 
+    org_dtype = mix.dtype
+    mix = mix.astype(np.complex128)
     mix = mix.T
     if noise_mask is not None:
         noise_mask = noise_mask.T
     if target_mask is not None:
         target_mask = target_mask.T
 
-    if target_mask is None:
-        target_mask = np.clip(1 - noise_mask, 1e-6, 1)
-    if noise_mask is None:
-        noise_mask = np.clip(1 - target_mask, 1e-6, 1)
-
-    target_psd_matrix = get_power_spectral_density_matrix(mix, target_mask)
-    noise_psd_matrix = get_power_spectral_density_matrix(mix, noise_mask)
-
-    # Beamforming vector
+    target_psd_matrix = get_power_spectral_density_matrix(
+        mix, target_mask, normalize=False)
+    noise_psd_matrix = get_power_spectral_density_matrix(
+        mix, noise_mask, normalize=True)
+    noise_psd_matrix = condition_covariance(noise_psd_matrix, 1e-6)
+    noise_psd_matrix /= np.trace(
+        noise_psd_matrix, axis1=-2, axis2=-1)[..., None, None]
     W_gev = get_gev_vector(target_psd_matrix, noise_psd_matrix)
+    W_gev = phase_correction(W_gev)
 
     if normalization:
         W_gev = blind_analytic_normalization(W_gev, noise_psd_matrix)
 
     output = apply_beamforming_vector(W_gev, mix)
+    output = output.astype(org_dtype)
 
     return output.T
