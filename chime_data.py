@@ -52,7 +52,7 @@ def get_audio_data(file_template, postfix='', ch_range=range(1, 7)):
 def get_audio_data_with_context(embedded_template, t_start, t_end,
                                 ch_range=range(1, 7)):
     start_context = max((t_start - 5), 0)
-    context_samples = (t_start - start_context) * 16000
+    context_samples = int((t_start - start_context) * 16000)
     audio_data = list()
     for ch in ch_range:
         audio_data.append(audioread(
