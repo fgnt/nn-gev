@@ -43,65 +43,48 @@ pip install librosa
 With the new baseline, you should get the following results:
   
     ```
-    local/chime3_calc_wers.sh exp/tri3b_tr05_multi_open_gev open_gev
+    local/chime4_calc_wers.sh exp/tri3b_tr05_multi_noisy new_baseline exp/tri3b_tr05_multi_noisy/graph_tgpr_5k
     compute dt05 WER for each location
-    
     -------------------
-    best overall dt05 WER 10.51% (language model weight = 12)
+    best overall dt05 WER 9.77% (language model weight = 12)
     -------------------
-    dt05_simu WER: 10.58% (Average), 8.76% (BUS), 13.19% (CAFE), 9.57% (PEDESTRIAN), 10.80% (STREET)
+    dt05_simu WER: 9.81% (Average), 8.95% (BUS), 11.28% (CAFE), 8.55% (PEDESTRIAN), 10.44% (STREET)
     -------------------
-    dt05_real WER: 10.44% (Average), 11.43% (BUS), 10.21% (CAFE), 9.31% (PEDESTRIAN), 10.81% (STREET)
+    dt05_real WER: 9.73% (Average), 11.67% (BUS), 9.37% (CAFE), 8.41% (PEDESTRIAN), 9.47% (STREET)
     -------------------
-    et05_simu WER: 12.43% (Average), 10.50% (BUS), 13.54% (CAFE), 12.46% (PEDESTRIAN), 13.24% (STREET)
+    et05_simu WER: 10.67% (Average), 8.85% (BUS), 11.34% (CAFE), 11.02% (PEDESTRIAN), 11.47% (STREET)
     -------------------
-    et05_real WER: 14.74% (Average), 17.72% (BUS), 14.98% (CAFE), 13.53% (PEDESTRIAN), 12.72% (STREET)
+    et05_real WER: 14.00% (Average), 19.01% (BUS), 13.37% (CAFE), 12.37% (PEDESTRIAN), 11.24% (STREET)
     -------------------
 
-    local/chime3_calc_wers.sh exp/tri4a_dnn_tr05_multi_open_gev open_gev
+
+    ./local/chime4_calc_wers_smbr.sh exp/tri4a_dnn_tr05_multi_noisy_smbr_i1lats new_baseline exp/tri4a_dnn_tr05_multi_noisy/graph_tgpr_5k
     compute dt05 WER for each location
+    -------------------
+    best overall dt05 WER 5.87% (language model weight = 9) (Number of iterations = 4)
+    -------------------
+    dt05_simu WER: 5.62% (Average), 5.24% (BUS), 6.58% (CAFE), 4.91% (PEDESTRIAN), 5.77% (STREET)
+    -------------------
+    dt05_real WER: 6.11% (Average), 7.66% (BUS), 5.83% (CAFE), 5.10% (PEDESTRIAN), 5.87% (STREET)
+    -------------------
+    et05_simu WER: 7.26% (Average), 6.74% (BUS), 7.70% (CAFE), 7.38% (PEDESTRIAN), 7.23% (STREET)
+    -------------------
+    et05_real WER: 9.48% (Average), 14.06% (BUS), 8.22% (CAFE), 7.81% (PEDESTRIAN), 7.84% (STREET)
+    -------------------
+
     
-    -------------------
-    best overall dt05 WER 7.86% (language model weight = 11)
-    -------------------
-    dt05_simu WER: 7.85% (Average), 6.18% (BUS), 10.01% (CAFE), 7.05% (PEDESTRIAN), 8.16% (STREET)
-    -------------------
-    dt05_real WER: 7.87% (Average), 8.94% (BUS), 8.44% (CAFE), 6.43% (PEDESTRIAN), 7.67% (STREET)
-    -------------------
-    et05_simu WER: 8.86% (Average), 7.53% (BUS), 9.62% (CAFE), 8.91% (PEDESTRIAN), 9.39% (STREET)
-    -------------------
-    et05_real WER: 11.46% (Average), 14.62% (BUS), 12.05% (CAFE), 9.59% (PEDESTRIAN), 9.60% (STREET)
-    -------------------
-    
-    ./local/chime3_calc_wers_smbr.sh exp/tri4a_dnn_tr05_multi_open_gev_smbr_i1lats open_gev exp/tri4a_dnn_tr05_multi_open_gev/graph_tgpr_5k
-    compute WER for each location
-    
-    -------------------
-    best overall dt05 WER 7.12% (language model weight = 11)
-     (Number of iterations = 4)
-    -------------------
-    dt05_simu WER: 7.00% (Average), 5.53% (BUS), 8.92% (CAFE), 6.46% (PEDESTRIAN), 7.08% (STREET)
-    -------------------
-    dt05_real WER: 7.25% (Average), 8.57% (BUS), 7.86% (CAFE), 5.77% (PEDESTRIAN), 6.80% (STREET)
-    -------------------
-    et05_simu WER: 8.11% (Average), 6.82% (BUS), 8.85% (CAFE), 7.96% (PEDESTRIAN), 8.80% (STREET)
-    -------------------
-    et05_real WER: 10.51% (Average), 13.01% (BUS), 10.93% (CAFE), 9.17% (PEDESTRIAN), 8.93% (STREET)
-    -------------------
-    
-    local/chime3_calc_wers.sh exp/tri4a_dnn_tr05_open_gev_beamformer_smbr_lmrescore gev_beamformer_rnnlm_5k_h300_w0.5_n100
+    local/chime4_calc_wers.sh exp/tri4a_dnn_tr05_multi_noisy_smbr_lmrescore new_baseline_rnnlm_5k_h300_w0.5_n100 exp/tri4a_dnn_tr05_multi_noisy_smbr_lmrescore/graph_tgpr_5k
     compute dt05 WER for each location
-    
     -------------------
-    best overall dt05 WER 4.77% (language model weight = 12)
+    best overall dt05 WER 4.02% (language model weight = 11)
     -------------------
-    dt05_simu WER: 5.01% (Average), 3.94% (BUS), 6.55% (CAFE), 4.35% (PEDESTRIAN), 5.21% (STREET)
+    dt05_simu WER: 3.97% (Average), 3.66% (BUS), 4.65% (CAFE), 3.38% (PEDESTRIAN), 4.19% (STREET)
     -------------------
-    dt05_real WER: 4.53% (Average), 5.35% (BUS), 4.65% (CAFE), 3.64% (PEDESTRIAN), 4.47% (STREET)
+    dt05_real WER: 4.07% (Average), 5.34% (BUS), 3.61% (CAFE), 3.35% (PEDESTRIAN), 4.00% (STREET)
     -------------------
-    et05_simu WER: 5.60% (Average), 5.10% (BUS), 6.07% (CAFE), 5.86% (PEDESTRIAN), 5.36% (STREET)
+    et05_simu WER: 4.51% (Average), 4.09% (BUS), 4.61% (CAFE), 4.46% (PEDESTRIAN), 4.86% (STREET)
     -------------------
-    et05_real WER: 7.45% (Average), 9.55% (BUS), 7.94% (CAFE), 5.98% (PEDESTRIAN), 6.35% (STREET)
+    et05_real WER: 6.46% (Average), 9.87% (BUS), 5.47% (CAFE), 5.14% (PEDESTRIAN), 5.34% (STREET)
     -------------------
     ```
     
